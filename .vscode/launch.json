@@ -14,10 +14,10 @@
             "justMyCode": true,
             "args": [
                 "--nproc_per_node=2",
-                "tools/train.py",
-                "projects/configs/tracking/petr/f3_q5_800x320.py",
+                "tools/train_tracker.py",
+                "plugin/track/configs/resnet101_fpn_3frame.py",
                 "--work-dir",
-                "work_dirs/f3_pf_track/ ",
+                "work_dirs/mutr3d ",
                 "--launcher",
                 "pytorch",
             ],

@@ -400,7 +400,7 @@ class MUTRCamTracker(MVXTwoStageDetector):
 
         # output_classes: [num_dec, B, num_query, num_classes]
         # query_feats: [B, num_query, embed_dim]
-
+        # 这个我们直接用bbox的cls和query来代替
         ref_box_sizes = torch.cat(
             [track_instances.pred_boxes[:, 2:4],
              track_instances.pred_boxes[:, 5:6]], dim=1)
@@ -461,7 +461,7 @@ class MUTRCamTracker(MVXTwoStageDetector):
         return out
 
     def forward_train(self,
-                      points=None,
+                      points=None,#激光雷达的数据还是别的啥？？
                       img=None,
                       radar=None,
                       img_metas=None,
@@ -513,7 +513,7 @@ class MUTRCamTracker(MVXTwoStageDetector):
 
         # init gt instances!
         gt_instances_list = []
-        for i in range(num_frame):
+        for i in range(num_frame):#
             gt_instances = Instances((1, 1))
             boxes = gt_bboxes_3d[0][i].tensor.to(img.device)
             # normalize gt bboxes here!
@@ -522,7 +522,7 @@ class MUTRCamTracker(MVXTwoStageDetector):
             gt_instances.boxes = boxes
             gt_instances.labels = gt_labels_3d[0][i]
             gt_instances.obj_ids = instance_inds[0][i]
-            gt_instances_list.append(gt_instances)
+            gt_instances_list.append(gt_instances)#获得连续多帧的instances_list
 
         # TODO init criterion
         self.criterion.initialize_for_single_clip(gt_instances_list)
@@ -549,10 +549,10 @@ class MUTRCamTracker(MVXTwoStageDetector):
                                              radar_single, img_metas_single,
                                              track_instances,
                                              l2g_r_mat[i], l2g_t[i],
-                                             l2g_r2, l2g_t2, time_delta)
+                                             l2g_r2, l2g_t2, time_delta)#观察如何做
             track_instances = frame_res['track_instances']
 
-        outputs = self.criterion.losses_dict
+        outputs = self.criterion.losses_dict #what,这里如何loss???
         return outputs
 
     def _inference_single(self, points, img, radar, img_metas, track_instances,
