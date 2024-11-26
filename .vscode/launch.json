@@ -17,7 +17,7 @@
                 "tools/train_tracker.py",
                 "plugin/track/configs/resnet101_fpn_3frame.py",
                 "--work-dir",
-                "work_dirs/mutr3d ",
+                "work_dirs/mutr3d",
                 "--launcher",
                 "pytorch",
             ],
@@ -27,14 +27,15 @@
             }
         },
         {
-            "name": "Multi-python",
+            "name": "python",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/tools/train.py",
+            "program": "${workspaceFolder}/tools/train_tracker.py",
+            "justMyCode": true,
             "args": [
-                "projects/configs/tracking/petr/f3_q5_800x320.py",
+                "plugin/track/configs/resnet101_fpn_3frame.py",
                 "--work-dir",
-                "work_dirs/f3_pf_track/"
+                "work_dirs/mutr3d"
             ],
             "console": "integratedTerminal",
             "env": {

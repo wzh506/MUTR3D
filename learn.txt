@@ -1,0 +1,8 @@
+1.转移conda环境！
+原位置：/home/lbs/anaconda3/envs/mutr3d
+现位置：/new-disk/env
+conda activate /new-disk/env/mutr3d
+不要直接conda activate mutr3d
+
+2.运行命令
+bash tools/dist_train_tracker.sh plugin/track/configs/resnet101_fpn_3frame.py 2 --work-dir=work_dirs/experiment_name

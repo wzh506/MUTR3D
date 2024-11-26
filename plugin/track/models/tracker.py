@@ -503,17 +503,17 @@ class MUTRCamTracker(MVXTwoStageDetector):
         # [T+1, 3, 3]
         l2g_r_mat = l2g_r_mat[0]
         # change to [T+1, 1, 3]
-        l2g_t = l2g_t[0].unsqueeze(dim=1)
+        l2g_t = l2g_t[0].unsqueeze(dim=1)     
 
         timestamp = timestamp
 
         bs = img.size(0)
-        num_frame = img.size(1) - 1
+        num_frame = img.size(1) - 1 #设置的batch_size=1,所以这里是1（第一维）
         track_instances = self._generate_empty_tracks()
 
         # init gt instances!
         gt_instances_list = []
-        for i in range(num_frame):#
+        for i in range(num_frame):#假如num_frame = 2
             gt_instances = Instances((1, 1))
             boxes = gt_bboxes_3d[0][i].tensor.to(img.device)
             # normalize gt bboxes here!
@@ -530,9 +530,9 @@ class MUTRCamTracker(MVXTwoStageDetector):
         # for bs 1
         lidar2img = img_metas[0]['lidar2img']  # [T, num_cam]
         for i in range(num_frame):
-            points_single = [p_[i] for p_ in points]
+            points_single = [p_[i] for p_ in points]# 这个到底是干嘛
             img_single = torch.stack([img_[i] for img_ in img], dim=0)
-            radar_single = torch.stack([radar_[i] for radar_ in radar], dim=0)
+            radar_single = torch.stack([radar_[i] for radar_ in radar], dim=0)#radar实际上没用
 
             img_metas_single = deepcopy(img_metas)
             img_metas_single[0]['lidar2img'] = lidar2img[i]

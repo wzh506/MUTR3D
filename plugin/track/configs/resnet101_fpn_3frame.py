@@ -221,12 +221,12 @@ test_pipeline_post = [
 
 data = dict(
     samples_per_gpu=1,
-    workers_per_gpu=4,
+    workers_per_gpu=0,
     train=dict(
             type=dataset_type,
             num_frames_per_sample=3,  # number of frames for each clip in training. If you have more memory, I suggested you to use more. 
             data_root=data_root,
-            ann_file=data_root + 'track_radar_infos_train.pkl',
+            ann_file=data_root + 'track_mutr_infos_train.pkl',
             pipeline_single=train_pipeline,
             pipeline_post=train_pipeline_post,
             classes=class_names,
@@ -236,12 +236,12 @@ data = dict(
             box_type_3d='LiDAR'),
     # ),
     val=dict(type=dataset_type, pipeline_single=test_pipeline, pipeline_post=test_pipeline_post, classes=class_names, modality=input_modality,
-             ann_file=data_root + 'track_radar_infos_val.pkl',
+             ann_file=data_root + 'track_mutr_infos_val.pkl',
              num_frames_per_sample=1,), # when inference, set bs=1
     test=dict(type=dataset_type, pipeline_single=test_pipeline,
               pipeline_post=test_pipeline_post,
               classes=class_names, modality=input_modality,
-              ann_file=data_root + 'track_radar_infos_val.pkl',
+              ann_file=data_root + 'track_mutr_infos_val.pkl',
               num_frames_per_sample=1,)) # when inference, set bs=1
 
 optimizer = dict(
