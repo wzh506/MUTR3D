@@ -240,10 +240,10 @@ class ClipMatcher(nn.Module):
 
         return losses
 
-    def match_for_single_frame(self, outputs: dict, dec_lvl: int, if_step=False):
+    def match_for_single_frame(self, outputs: dict, dec_lvl: int, if_step=False):#哪个特征图，step是多少(self中是啥)（outputs是目前的）
         outputs_without_aux = {k: v for k, v in outputs.items() if k != 'aux_outputs'}
 
-        gt_instances_i = self.gt_instances[self._current_frame_idx]  # gt instances of i-th image.
+        gt_instances_i = self.gt_instances[self._current_frame_idx]  # gt instances of i-th image.居然是按不同相机图片处理
         track_instances: Instances = outputs_without_aux['track_instances']
         pred_logits_i = track_instances.pred_logits  # predicted logits of i-th image.
         pred_boxes_i = track_instances.pred_boxes  # predicted boxes of i-th image.

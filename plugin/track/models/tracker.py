@@ -153,6 +153,7 @@ class MUTRCamTracker(MVXTwoStageDetector):
         self.bbox_size_fc = nn.Linear(self.embed_dims, 3)
         self.query_embedding = nn.Embedding(self.num_query,
                                             self.embed_dims * 2)
+        
         self.mem_bank_len = mem_cfg['memory_bank_len']
         self.memory_bank = None
         self.track_base = RuntimeTrackerBase(
@@ -408,18 +409,18 @@ class MUTRCamTracker(MVXTwoStageDetector):
         output_classes, output_coords, \
             query_feats, last_ref_pts = self.pts_bbox_head(
                 img_feats, radar_feats, track_instances.query,
-                track_instances.ref_pts, ref_box_sizes, img_metas,)
-
+                track_instances.ref_pts, ref_box_sizes, img_metas,)#就这里用到了NN,多个尺度特征图
+        # 输出：class，box，query,attn_pts
         out = {'pred_logits': output_classes[-1],
                'pred_boxes': output_coords[-1],
                'ref_pts': last_ref_pts}
 
         with torch.no_grad():
-            track_scores = output_classes[-1, 0, :].sigmoid().max(dim=-1).values
+            track_scores = output_classes[-1, 0, :].sigmoid().max(dim=-1).values#这个对应cls[300]
 
         # Step-1 Update track instances with current prediction
         # [nb_dec, bs, num_query, xxx]
-        nb_dec = output_classes.size(0)
+        nb_dec = output_classes.size(0)#为啥有个6
 
         # the track id will be assigned by the matcher.
         track_instances_list = [self._copy_tracks_for_loss(track_instances) for i in range(nb_dec-1)]
@@ -446,7 +447,7 @@ class MUTRCamTracker(MVXTwoStageDetector):
 
             out['track_instances'] = track_instances
             track_instances = self.criterion.match_for_single_frame(
-                out, i, if_step=(i == (nb_dec - 1)))
+                out, i, if_step=(i == (nb_dec - 1))) #两帧间的匹配,核心代码
 
         if self.memory_bank is not None:
             track_instances = self.memory_bank(track_instances)
@@ -512,7 +513,7 @@ class MUTRCamTracker(MVXTwoStageDetector):
         track_instances = self._generate_empty_tracks()
 
         # init gt instances!
-        gt_instances_list = []
+        gt_instances_list = []#没有上一刻得怎么办
         for i in range(num_frame):#假如num_frame = 2
             gt_instances = Instances((1, 1))
             boxes = gt_bboxes_3d[0][i].tensor.to(img.device)

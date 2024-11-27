@@ -6,3 +6,6 @@ conda activate /new-disk/env/mutr3d
 
 2.运行命令
 bash tools/dist_train_tracker.sh plugin/track/configs/resnet101_fpn_3frame.py 2 --work-dir=work_dirs/experiment_name
+
+3.服务器数据传输
+scp -r  /new-disk/wangzhaohui/MUTR3D/mmcv  root@10.30.44.76:/data/wangzhaohui/github/Sparse4Dv3-main
