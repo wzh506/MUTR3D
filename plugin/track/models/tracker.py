@@ -447,7 +447,7 @@ class MUTRCamTracker(MVXTwoStageDetector):
 
             out['track_instances'] = track_instances
             track_instances = self.criterion.match_for_single_frame(
-                out, i, if_step=(i == (nb_dec - 1))) #两帧间的匹配,核心代码
+                out, i, if_step=(i == (nb_dec - 1))) #两帧间的匹配,核心代码 track_instances._fields.keys()
 
         if self.memory_bank is not None:
             track_instances = self.memory_bank(track_instances)
@@ -476,7 +476,7 @@ class MUTRCamTracker(MVXTwoStageDetector):
                       ):
         """Forward training function.
         This function will call _forward_single in a for loop
-
+        这个代码仅支持bs=1
         Args:
             points (list(list[torch.Tensor]), optional): B-T-sample
                 Points of each sample.
@@ -510,12 +510,12 @@ class MUTRCamTracker(MVXTwoStageDetector):
 
         bs = img.size(0)
         num_frame = img.size(1) - 1 #设置的batch_size=1,所以这里是1（第一维）
-        track_instances = self._generate_empty_tracks()
+        track_instances = self._generate_empty_tracks() #track_instances._fields.keys() 300,都是纯0初始化
 
         # init gt instances!
         gt_instances_list = []#没有上一刻得怎么办
         for i in range(num_frame):#假如num_frame = 2
-            gt_instances = Instances((1, 1))
+            gt_instances = Instances((1, 1))#空的,_fields为{}
             boxes = gt_bboxes_3d[0][i].tensor.to(img.device)
             # normalize gt bboxes here!
             boxes = normalize_bbox(boxes, self.pc_range)
@@ -523,7 +523,7 @@ class MUTRCamTracker(MVXTwoStageDetector):
             gt_instances.boxes = boxes
             gt_instances.labels = gt_labels_3d[0][i]
             gt_instances.obj_ids = instance_inds[0][i]
-            gt_instances_list.append(gt_instances)#获得连续多帧的instances_list
+            gt_instances_list.append(gt_instances)#获得连续多帧的instances_list,第一帧40个,第二帧33个,第三帧30个
 
         # TODO init criterion
         self.criterion.initialize_for_single_clip(gt_instances_list)
@@ -531,12 +531,12 @@ class MUTRCamTracker(MVXTwoStageDetector):
         # for bs 1
         lidar2img = img_metas[0]['lidar2img']  # [T, num_cam]
         for i in range(num_frame):
-            points_single = [p_[i] for p_ in points]# 这个到底是干嘛
-            img_single = torch.stack([img_[i] for img_ in img], dim=0)
+            points_single = [p_[i] for p_ in points]# 这个到底是干嘛#points[0][0]格式,lidar
+            img_single = torch.stack([img_[i] for img_ in img], dim=0)#取一帧
             radar_single = torch.stack([radar_[i] for radar_ in radar], dim=0)#radar实际上没用
 
             img_metas_single = deepcopy(img_metas)
-            img_metas_single[0]['lidar2img'] = lidar2img[i]
+            img_metas_single[0]['lidar2img'] = lidar2img[i]#按帧获取
 
             if i == num_frame - 1:
                 l2g_r2 = None
@@ -546,11 +546,11 @@ class MUTRCamTracker(MVXTwoStageDetector):
                 l2g_r2 = l2g_r_mat[i+1]
                 l2g_t2 = l2g_t[i+1]
                 time_delta = timestamp[i+1] - timestamp[i]
-            frame_res = self._forward_single(points_single, img_single,
+            frame_res = self._forward_single(points_single, img_single,# t-4+i时刻的数据,连续4个时刻的gt一起做loss,所以batch=0
                                              radar_single, img_metas_single,
                                              track_instances,
                                              l2g_r_mat[i], l2g_t[i],
-                                             l2g_r2, l2g_t2, time_delta)#观察如何做
+                                             l2g_r2, l2g_t2, time_delta)#从最前帧开始，一帧一帧的处理到当前帧(为啥要这样),获取下一刻的运动
             track_instances = frame_res['track_instances']
 
         outputs = self.criterion.losses_dict #what,这里如何loss???

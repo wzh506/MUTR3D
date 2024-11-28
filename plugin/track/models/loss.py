@@ -101,7 +101,7 @@ class ClipMatcher(nn.Module):
         return batch_idx, tgt_idx
 
     def initialize_for_single_clip(self, gt_instances: List[Instances]):
-        self.gt_instances = gt_instances
+        self.gt_instances = gt_instances #记录真值
         self.num_samples = 0
         self.sample_device = None
         self._current_frame_idx = 0

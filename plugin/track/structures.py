@@ -34,7 +34,7 @@ class Instances:
           confident_detections = instances[instances.scores > 0.9]
     """
 
-    def __init__(self, image_size: Tuple[int, int], **kwargs: Any):
+    def __init__(self, image_size: Tuple[int, int], **kwargs: Any):#Instacnes(1,1)就没啥用
         """
         Args:
             image_size (height, width): the spatial size of the image.
