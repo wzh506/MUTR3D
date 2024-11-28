@@ -243,14 +243,14 @@ class ClipMatcher(nn.Module):
     def match_for_single_frame(self, outputs: dict, dec_lvl: int, if_step=False):#哪个特征图，step是多少(self中是啥)（outputs是目前的）
         outputs_without_aux = {k: v for k, v in outputs.items() if k != 'aux_outputs'}
 
-        gt_instances_i = self.gt_instances[self._current_frame_idx]  # gt instances of i-th image.居然是按不同相机图片处理
+        gt_instances_i = self.gt_instances[self._current_frame_idx]  # gt instances of i-th image.
         track_instances: Instances = outputs_without_aux['track_instances']
-        pred_logits_i = track_instances.pred_logits  # predicted logits of i-th image.
+        pred_logits_i = track_instances.pred_logits  # predicted logits of i-th image.第i帧的预测logits
         pred_boxes_i = track_instances.pred_boxes  # predicted boxes of i-th image.
 
         obj_idxes = gt_instances_i.obj_ids
         obj_idxes_list = obj_idxes.detach().cpu().numpy().tolist()
-        obj_idx_to_gt_idx = {obj_idx: gt_idx for gt_idx, obj_idx in enumerate(obj_idxes_list)}
+        obj_idx_to_gt_idx = {obj_idx: gt_idx for gt_idx, obj_idx in enumerate(obj_idxes_list)}#按照排序来的
         outputs_i = {
             'pred_logits': pred_logits_i.unsqueeze(0),
             'pred_boxes': pred_boxes_i.unsqueeze(0),
@@ -258,31 +258,31 @@ class ClipMatcher(nn.Module):
 
         # step1. inherit and update the previous tracks.
         num_disappear_track = 0
-        for j in range(len(track_instances)):
-            obj_id = track_instances.obj_idxes[j].item()
+        for j in range(len(track_instances)):#第一帧基本都匹配不上
+            obj_id = track_instances.obj_idxes[j].item()#第一帧获得初始化的obj_id，第j个
             # set new target idx.
             if obj_id >= 0:
-                if obj_id in obj_idx_to_gt_idx:
-                    track_instances.matched_gt_idxes[j] = obj_idx_to_gt_idx[obj_id]
+                if obj_id in obj_idx_to_gt_idx:#在gt里面有这个id
+                    track_instances.matched_gt_idxes[j] = obj_idx_to_gt_idx[obj_id]#记录一下，这里匹配上了gt的哪个
                 else:
                     num_disappear_track += 1
-                    track_instances.matched_gt_idxes[j] = -1  # track-disappear case.
+                    track_instances.matched_gt_idxes[j] = -1  # track-disappear case. #这里没有匹配上,说明这个物体没有对应的gt，这个物体消失了，检测是失败的,也应该remove
             else:
-                track_instances.matched_gt_idxes[j] = -1
+                track_instances.matched_gt_idxes[j] = -1 #这里没有匹配上，说明这个是背景，检测时多余的,下次remove
 
         full_track_idxes = torch.arange(len(track_instances), dtype=torch.long).to(pred_logits_i.device)
         # previsouly tracked, which is matched by rule
-        matched_track_idxes = (track_instances.obj_idxes >= 0)
+        matched_track_idxes = (track_instances.obj_idxes >= 0) #数量，有obj_idxes就是有的,但是第一帧匹配不上啊
         prev_matched_indices = torch.stack(
             [full_track_idxes[matched_track_idxes], track_instances.matched_gt_idxes[matched_track_idxes]], dim=1).to(
-            pred_logits_i.device)
+            pred_logits_i.device) #第一帧一个都没有
 
         # step2. select the unmatched slots.
         # note that the FP tracks whose obj_idxes are -2 will not be selected here.
         unmatched_track_idxes = full_track_idxes[track_instances.obj_idxes == -1]
 
-        # step3. select the untracked gt instances (new tracks).
-        tgt_indexes = track_instances.matched_gt_idxes
+        # step3. select the untracked gt instances (new tracks). 因为第一帧全是空的empty,所以这里全是new tracks
+        tgt_indexes = track_instances.matched_gt_idxes #
         tgt_indexes = tgt_indexes[tgt_indexes != -1]
 
         tgt_state = torch.zeros(len(gt_instances_i)).to(pred_logits_i.device)
@@ -317,7 +317,7 @@ class ClipMatcher(nn.Module):
                                               dim=1).to(pred_logits_i.device)
             return new_matched_indices
 
-        # step4. do matching between the unmatched slots and GTs.
+        # step4. do matching between the unmatched slots and GTs. #如何进行匹配
         unmatched_outputs = {
             # [bs, num_pred, num_classes]
             'pred_logits': track_instances.pred_logits[unmatched_track_idxes].unsqueeze(0),
@@ -338,11 +338,11 @@ class ClipMatcher(nn.Module):
         else:
             matched_indices = prev_matched_indices
 
-        # step8. calculate losses.
+        # step8. calculate losses. 这列为啥又loss??
         self.num_samples += len(gt_instances_i) + num_disappear_track
         self.sample_device = pred_logits_i.device
 
-        for loss in self.losses:
+        for loss in self.losses:#这里计算的loss也不过是detection的loss,并不涉及tracking的loss(trackig根本就不用loss监督学习)
             new_track_loss = self.get_loss(loss,
                                            outputs=outputs_i,
                                            gt_instances=[gt_instances_i],

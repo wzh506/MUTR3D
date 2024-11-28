@@ -53,7 +53,7 @@ class Instances:
         """
         return self._image_size
 
-    def __setattr__(self, name: str, val: Any) -> None:
+    def __setattr__(self, name: str, val: Any) -> None: #按字典key赋值
         if name.startswith("_"):
             super().__setattr__(name, val)
         else:

@@ -194,8 +194,8 @@ class DeformableMUTRTrackingHead(nn.Module):
         hs, inter_references, inter_box_sizes = self.transformer(
             mlvl_feats,
             query_embeds,
-            ref_points,
-            ref_size,
+            ref_points,#detr里面,仅查询图片个平面300个点,deformabel attention的功能
+            ref_size,#
             reg_branches=self.reg_branches,
             img_metas=img_metas,
             radar_feats=radar_feats,
@@ -205,7 +205,7 @@ class DeformableMUTRTrackingHead(nn.Module):
         hs = hs.permute(0, 2, 1, 3)
         outputs_classes = []
         outputs_coords = []
-
+        # 每一层的decoder都有输出,但是不需要全部使用
         for lvl in range(hs.shape[0]):
             if lvl == 0:
                 reference = ref_points.sigmoid()
@@ -246,14 +246,14 @@ class DeformableMUTRTrackingHead(nn.Module):
             bbox_pred = torch.cat([xywlzh, direction_pred, velo_pred], dim=2)
             outputs_classes.append(outputs_class)
             outputs_coords.append(bbox_pred)
-
+        # torch.Size([6, 1, 300, 7]) 最前面的6到底是什么
         outputs_classes = torch.stack(outputs_classes)
         outputs_coords = torch.stack(outputs_coords)
         # [bs, num_query, embed_dim]
         # change to inverse sigmoid space
         last_ref_points = inverse_sigmoid(last_ref_points)
         
-        last_query_feats = hs[-1]
+        last_query_feats = hs[-1]#最后一个decoder的输出
         
         return outputs_classes, outputs_coords, \
             last_query_feats, last_ref_points

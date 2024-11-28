@@ -297,7 +297,7 @@ class MUTRCamTracker(MVXTwoStageDetector):
         device = self.query_embedding.weight.device
         query = self.query_embedding.weight
         track_instances.ref_pts = self.reference_points(
-                            query[..., :dim // 2])
+                            query[..., :dim // 2])#query
 
         # init boxes: xy, wl, z, h, sin, cos, vx, vy, vz
         box_sizes = self.bbox_size_fc(query[..., :dim // 2])
@@ -397,47 +397,47 @@ class MUTRCamTracker(MVXTwoStageDetector):
         '''
         B, num_cam, _, H, W = img.shape
         img_feats, radar_feats, pts_feats = self.extract_feat(
-            points, img=img, radar=radar, img_metas=img_metas)
+            points, img=img, radar=radar, img_metas=img_metas)#直接提取图片特征,经典图像金字塔
 
         # output_classes: [num_dec, B, num_query, num_classes]
         # query_feats: [B, num_query, embed_dim]
         # 这个我们直接用bbox的cls和query来代替
         ref_box_sizes = torch.cat(
             [track_instances.pred_boxes[:, 2:4],
-             track_instances.pred_boxes[:, 5:6]], dim=1)
-
+             track_instances.pred_boxes[:, 5:6]], dim=1)#现在还是空的2,3,5 看来这里时lwh
+        # 这里的6其实是decoder的每层输出，一般取最后一层输出作为最终结果即可
         output_classes, output_coords, \
             query_feats, last_ref_pts = self.pts_bbox_head(
-                img_feats, radar_feats, track_instances.query,
-                track_instances.ref_pts, ref_box_sizes, img_metas,)#就这里用到了NN,多个尺度特征图
+                img_feats, radar_feats, track_instances.query,#query是可学习的参数（锚点框）
+                track_instances.ref_pts, ref_box_sizes, img_metas,)#ref_pts最初就3维(和我想得deformabele的points不一样)
         # 输出：class，box，query,attn_pts
         out = {'pred_logits': output_classes[-1],
                'pred_boxes': output_coords[-1],
                'ref_pts': last_ref_pts}
 
         with torch.no_grad():
-            track_scores = output_classes[-1, 0, :].sigmoid().max(dim=-1).values#这个对应cls[300]
+            track_scores = output_classes[-1, 0, :].sigmoid().max(dim=-1).values#这个对应cls[300]，置信度就是给的分数
 
         # Step-1 Update track instances with current prediction
         # [nb_dec, bs, num_query, xxx]
-        nb_dec = output_classes.size(0)#为啥有个6
+        nb_dec = output_classes.size(0)#decoder的数量
 
         # the track id will be assigned by the matcher.
-        track_instances_list = [self._copy_tracks_for_loss(track_instances) for i in range(nb_dec-1)]
+        track_instances_list = [self._copy_tracks_for_loss(track_instances) for i in range(nb_dec-1)]#range(0,5),copy5次有什么用？
         track_instances.output_embedding = query_feats[0]  # [300, feat_dim]
-        velo = output_coords[-1, 0, :, -2:] # [num_query, 3]
-
+        velo = output_coords[-1, 0, :, -2:] # [num_query, 3] #shape torch.Size([300, 2]) 这里可能错了（只管vx,vy
+        # 10: x,y, w,l, z, h, sin, cos, vx, vy, vz 这个顺序
         if l2g_r2 is not None:
             ref_pts = self.velo_update(
                 last_ref_pts[0], velo, l2g_r1, l2g_t1, l2g_r2, l2g_t2,
-                time_delta=time_delta)
+                time_delta=time_delta) #计算出下一刻的初始ref_pts
         else:
-            ref_pts = last_ref_pts[0]
-        track_instances.ref_pts = ref_pts
+            ref_pts = last_ref_pts[0]#没有下一刻参与训练，所以不需要更新
+        track_instances.ref_pts = ref_pts #进去300,出来还是300
 
 
-        track_instances_list.append(track_instances)
-        for i in range(nb_dec):
+        track_instances_list.append(track_instances)#？？？前5个是，最后一个有output和ref_pts
+        for i in range(nb_dec):#计算6个编码图的输出
             track_instances = track_instances_list[i]
             #track_scores = output_classes[i, 0, :].sigmoid().max(dim=-1).values
 
@@ -445,9 +445,9 @@ class MUTRCamTracker(MVXTwoStageDetector):
             track_instances.pred_logits = output_classes[i, 0]  # [300, num_cls]
             track_instances.pred_boxes = output_coords[i, 0]  # [300, box_dim]
 
-            out['track_instances'] = track_instances
+            out['track_instances'] = track_instances #实际上取得最后一层的输出
             track_instances = self.criterion.match_for_single_frame(
-                out, i, if_step=(i == (nb_dec - 1))) #两帧间的匹配,核心代码 track_instances._fields.keys()
+                out, i, if_step=(i == (nb_dec - 1))) #进行pred和gt的匹配,但是关i有啥关系呢？
 
         if self.memory_bank is not None:
             track_instances = self.memory_bank(track_instances)
@@ -462,15 +462,15 @@ class MUTRCamTracker(MVXTwoStageDetector):
         return out
 
     def forward_train(self,
-                      points=None,#激光雷达的数据还是别的啥？？
-                      img=None,
+                      points=None,#4帧激光雷达数据
+                      img=None, #(连续)4帧图片信息
                       radar=None,
-                      img_metas=None,
-                      gt_bboxes_3d=None,
+                      img_metas=None,#(连续)4帧图片标定
+                      gt_bboxes_3d=None,#(连续)4帧gtbbox
                       gt_labels_3d=None,
-                      instance_inds=None,
-                      l2g_r_mat=None,
-                      l2g_t=None,
+                      instance_inds=None,#(连续)4帧gtbbox对应的id
+                      l2g_r_mat=None,#(连续)4帧lidar到全局的旋转矩阵
+                      l2g_t=None,##(连续)4帧lidar到全局的平移矩阵
                       gt_bboxes_ignore=None,
                       timestamp=None,
                       ):
@@ -548,9 +548,9 @@ class MUTRCamTracker(MVXTwoStageDetector):
                 time_delta = timestamp[i+1] - timestamp[i]
             frame_res = self._forward_single(points_single, img_single,# t-4+i时刻的数据,连续4个时刻的gt一起做loss,所以batch=0
                                              radar_single, img_metas_single,
-                                             track_instances,
-                                             l2g_r_mat[i], l2g_t[i],
-                                             l2g_r2, l2g_t2, time_delta)#从最前帧开始，一帧一帧的处理到当前帧(为啥要这样),获取下一刻的运动
+                                             track_instances,#第一帧开始时,instances为空
+                                             l2g_r_mat[i], l2g_t[i],#本时刻的位置
+                                             l2g_r2, l2g_t2, time_delta)#下一时刻的位置
             track_instances = frame_res['track_instances']
 
         outputs = self.criterion.losses_dict #what,这里如何loss???
